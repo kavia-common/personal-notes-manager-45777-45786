@@ -13,20 +13,21 @@ export type NoteEditorProps = {
  * NoteEditor renders the main editor panel for the selected note.
  */
 export const NoteEditor = component$<NoteEditorProps>((props) => {
+  // Initialize from incoming props only once per render; avoid referencing props inside tasks
   const noteIdSig = useSignal<string | null>(props.note?.id ?? null);
   const lastSavedSig = useSignal<number | null>(props.lastSavedAt ?? null);
 
+  // Mirror props into signals immediately during render; avoid reading props in tasks
+  noteIdSig.value = props.note?.id ?? null;
+  lastSavedSig.value = props.lastSavedAt ?? null;
+
+  // Track signal values only
   useTask$(({ track }) => {
-    // Read current values into locals first, then track those primitives
-    const currentId = props.note ? props.note.id : null;
-    track(() => currentId);
-    noteIdSig.value = currentId;
+    track(() => noteIdSig.value);
   });
 
   useTask$(({ track }) => {
-    const saved = props.lastSavedAt ?? null;
-    track(() => saved);
-    lastSavedSig.value = saved;
+    track(() => lastSavedSig.value);
   });
 
   if (!props.note) {
@@ -40,22 +41,20 @@ export const NoteEditor = component$<NoteEditorProps>((props) => {
     );
   }
 
-  const handleTitle = event$<InputEvent>((_, el) => {
+  // Qwik event$ handlers should accept the event and element directly
+  const handleTitle = event$((_: InputEvent, el: HTMLInputElement) => {
     const id = noteIdSig.value;
     if (!id) return;
-    const input = el as HTMLInputElement;
-    // Dispatch a custom event; parent passes function via attribute on element dataset is avoided
     window.dispatchEvent(
-      new CustomEvent("note:update", { detail: { id, patch: { title: input.value } } }),
+      new CustomEvent("note:update", { detail: { id, patch: { title: el.value } } }),
     );
   });
 
-  const handleContent = event$<InputEvent>((_, el) => {
+  const handleContent = event$((_: InputEvent, el: HTMLTextAreaElement) => {
     const id = noteIdSig.value;
     if (!id) return;
-    const ta = el as HTMLTextAreaElement;
     window.dispatchEvent(
-      new CustomEvent("note:update", { detail: { id, patch: { content: ta.value } } }),
+      new CustomEvent("note:update", { detail: { id, patch: { content: el.value } } }),
     );
   });
 

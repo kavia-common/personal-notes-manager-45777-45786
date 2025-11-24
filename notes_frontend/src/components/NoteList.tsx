@@ -29,16 +29,17 @@ export const NoteList = component$<NoteListProps>((props) => {
   const selectedSig = useSignal<string | null>(props.selectedId);
   const searchSig = useSignal<string>(props.searchQuery);
 
+  // Mirror props to signals during render
+  selectedSig.value = props.selectedId;
+  searchSig.value = props.searchQuery;
+
+  // Only track signals
   useTask$(({ track }) => {
-    const sid = props.selectedId ?? "";
-    track(() => sid);
-    selectedSig.value = props.selectedId;
+    track(() => selectedSig.value);
   });
 
   useTask$(({ track }) => {
-    const sq = props.searchQuery ?? "";
-    track(() => sq);
-    searchSig.value = props.searchQuery;
+    track(() => searchSig.value);
   });
 
   const createHandler = event$(() => {
@@ -46,10 +47,10 @@ export const NoteList = component$<NoteListProps>((props) => {
     window.dispatchEvent(new CustomEvent("note:create"));
   });
 
-  const searchHandler = event$<InputEvent>((_, el) => {
-    const input = el as HTMLInputElement;
+  // Use direct signature, not a factory
+  const searchHandler = event$((_: InputEvent, el: HTMLInputElement) => {
     window.dispatchEvent(
-      new CustomEvent("note:search", { detail: { q: input.value } }),
+      new CustomEvent("note:search", { detail: { q: el.value } }),
     );
   });
 
@@ -84,7 +85,7 @@ export const NoteList = component$<NoteListProps>((props) => {
             window.dispatchEvent(new CustomEvent("note:select", { detail: { id: n.id } }));
           });
 
-          const keyHandler = event$<KeyboardEvent>((e) => {
+          const keyHandler = event$((e: KeyboardEvent) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               window.dispatchEvent(new CustomEvent("note:select", { detail: { id: n.id } }));

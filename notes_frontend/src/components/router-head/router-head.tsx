@@ -1,5 +1,4 @@
 import { useDocumentHead, useLocation } from "@builder.io/qwik-city";
-
 import { component$ } from "@builder.io/qwik";
 
 /**
@@ -18,6 +17,7 @@ export const RouterHead = component$(() => {
       <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
       {head.meta.map((m) => (
+        // Spread attributes coming from Qwik head config
         <meta key={m.key} {...m} />
       ))}
 
