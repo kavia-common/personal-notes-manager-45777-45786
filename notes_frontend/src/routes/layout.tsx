@@ -13,8 +13,13 @@ export const onGet: RequestHandler = async ({ cacheControl }) => {
 export default component$(() => {
   useStyles$(styles);
   return (
-    <main>
-      <Slot />
-    </main>
+    <div class="app-root">
+      <header class="app-header" role="banner" style="padding: .75rem 1rem;">
+        <span style="font-weight:700;color:#0f172a">Personal Notes</span>
+      </header>
+      <main>
+        <Slot />
+      </main>
+    </div>
   );
 });
