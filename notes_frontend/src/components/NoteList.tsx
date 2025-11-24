@@ -1,13 +1,14 @@
-import { component$, event$, useSignal, useTask$ } from "@builder.io/qwik";
+import { component$, event$, useSignal, useTask$, type QRL } from "@builder.io/qwik";
 import type { Note } from "~/hooks/useNotes";
 
 export type NoteListProps = {
   notes: Note[];
   selectedId: string | null;
-  onCreate: () => void;
-  onSelect: (id: string) => void;
+  // QRL callback props (can be optionally used directly by parents)
+  onCreate$?: QRL<() => void | Promise<void>>;
+  onSelect$?: QRL<(id: string) => void | Promise<void>>;
   searchQuery: string;
-  onSearchChange: (val: string) => void;
+  onSearchChange$?: QRL<(val: string) => void | Promise<void>>;
 };
 
 function timeAgo(ts: number) {
@@ -21,9 +22,10 @@ function timeAgo(ts: number) {
   return `${days}d ago`;
 }
 
-/**
+/** 
  * PUBLIC_INTERFACE
  * NoteList renders a searchable, selectable list of notes.
+ * Props accept QRL callbacks (onCreate$, onSelect$, onSearchChange$) allowing parents to pass serializable handlers.
  */
 export const NoteList = component$<NoteListProps>((props) => {
   const selectedSig = useSignal<string | null>(props.selectedId);
@@ -42,16 +44,25 @@ export const NoteList = component$<NoteListProps>((props) => {
     track(() => searchSig.value);
   });
 
-  const createHandler = event$(() => {
-    // Use a custom event to avoid capturing parent functions
-    window.dispatchEvent(new CustomEvent("note:create"));
+  const createHandler = event$(async () => {
+    // Prefer direct QRL call if provided
+    if (props.onCreate$) {
+      await props.onCreate$();
+    } else {
+      // Fallback: use a custom event to avoid capturing parent functions
+      window.dispatchEvent(new CustomEvent("note:create"));
+    }
   });
 
   // Use direct signature, not a factory
-  const searchHandler = event$((_: InputEvent, el: HTMLInputElement) => {
-    window.dispatchEvent(
-      new CustomEvent("note:search", { detail: { q: el.value } }),
-    );
+  const searchHandler = event$(async (_: InputEvent, el: HTMLInputElement) => {
+    if (props.onSearchChange$) {
+      await props.onSearchChange$(el.value);
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("note:search", { detail: { q: el.value } }),
+      );
+    }
   });
 
   return (
@@ -81,14 +92,22 @@ export const NoteList = component$<NoteListProps>((props) => {
         {props.notes.map((n) => {
           const isActive = selectedSig.value === n.id;
 
-          const clickHandler = event$(() => {
-            window.dispatchEvent(new CustomEvent("note:select", { detail: { id: n.id } }));
+          const clickHandler = event$(async () => {
+            if (props.onSelect$) {
+              await props.onSelect$(n.id);
+            } else {
+              window.dispatchEvent(new CustomEvent("note:select", { detail: { id: n.id } }));
+            }
           });
 
-          const keyHandler = event$((e: KeyboardEvent) => {
+          const keyHandler = event$(async (e: KeyboardEvent) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              window.dispatchEvent(new CustomEvent("note:select", { detail: { id: n.id } }));
+              if (props.onSelect$) {
+                await props.onSelect$(n.id);
+              } else {
+                window.dispatchEvent(new CustomEvent("note:select", { detail: { id: n.id } }));
+              }
             }
           });
 

@@ -48,9 +48,14 @@ export default component$(() => {
     });
   });
 
-  const onSearchChange = $((val: string) => {
+  const onSearchChange$ = $((val: string) => {
     store.searchQuery = val;
   });
+
+  const onCreate$ = $(() => createNote());
+  const onSelect$ = $((id: string) => selectNote(id));
+  const onUpdate$ = $((id: string, patch: any) => updateNote(id, patch || {}));
+  const onDelete$ = $((id: string) => deleteNote(id));
 
   const selected = () => store.notes.find((n) => n.id === store.selectedId) ?? null;
 
@@ -59,15 +64,15 @@ export default component$(() => {
       <NoteList
         notes={filtered.value}
         selectedId={store.selectedId}
-        onCreate={createNote}
-        onSelect={(id) => selectNote(id)}
+        onCreate$={onCreate$}
+        onSelect$={onSelect$}
         searchQuery={store.searchQuery}
-        onSearchChange={onSearchChange}
+        onSearchChange$={onSearchChange$}
       />
       <NoteEditor
         note={selected()}
-        onUpdate={$(() => {})}
-        onDelete={$(() => {})}
+        onUpdate$={onUpdate$}
+        onDelete$={onDelete$}
         lastSavedAt={store.lastSavedAt}
       />
     </div>

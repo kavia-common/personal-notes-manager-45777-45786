@@ -1,16 +1,19 @@
-import { component$, event$, useSignal, useTask$ } from "@builder.io/qwik";
+import { component$, event$, useSignal, useTask$, type QRL } from "@builder.io/qwik";
 import type { Note } from "~/hooks/useNotes";
 
 export type NoteEditorProps = {
   note: Note | null;
-  onUpdate: (id: string, patch: Partial<Pick<Note, "title" | "content">>) => void;
-  onDelete: (id: string) => void;
+  // QRL callback props (optional for direct invocation)
+  onUpdate$?: QRL<(id: string, patch: Partial<Pick<Note, "title" | "content">>) => void | Promise<void>>;
+  onDelete$?: QRL<(id: string) => void | Promise<void>>;
   lastSavedAt: number | null;
 };
 
 /**
  * PUBLIC_INTERFACE
  * NoteEditor renders the main editor panel for the selected note.
+ * QRL callbacks onUpdate$ and onDelete$ are optional; when not provided, the component dispatches custom events
+ * (note:update, note:delete) which the parent route listens to.
  */
 export const NoteEditor = component$<NoteEditorProps>((props) => {
   // Initialize from incoming props only once per render; avoid referencing props inside tasks
@@ -42,28 +45,40 @@ export const NoteEditor = component$<NoteEditorProps>((props) => {
   }
 
   // Qwik event$ handlers should accept the event and element directly
-  const handleTitle = event$((_: InputEvent, el: HTMLInputElement) => {
+  const handleTitle = event$(async (_: InputEvent, el: HTMLInputElement) => {
     const id = noteIdSig.value;
     if (!id) return;
-    window.dispatchEvent(
-      new CustomEvent("note:update", { detail: { id, patch: { title: el.value } } }),
-    );
+    if (props.onUpdate$) {
+      await props.onUpdate$(id, { title: el.value });
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("note:update", { detail: { id, patch: { title: el.value } } }),
+      );
+    }
   });
 
-  const handleContent = event$((_: InputEvent, el: HTMLTextAreaElement) => {
+  const handleContent = event$(async (_: InputEvent, el: HTMLTextAreaElement) => {
     const id = noteIdSig.value;
     if (!id) return;
-    window.dispatchEvent(
-      new CustomEvent("note:update", { detail: { id, patch: { content: el.value } } }),
-    );
+    if (props.onUpdate$) {
+      await props.onUpdate$(id, { content: el.value });
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("note:update", { detail: { id, patch: { content: el.value } } }),
+      );
+    }
   });
 
-  const handleDelete = event$(() => {
+  const handleDelete = event$(async () => {
     const id = noteIdSig.value;
     if (!id) return;
     const confirmDelete = window.confirm("Delete this note? This cannot be undone.");
     if (confirmDelete) {
-      window.dispatchEvent(new CustomEvent("note:delete", { detail: { id } }));
+      if (props.onDelete$) {
+        await props.onDelete$(id);
+      } else {
+        window.dispatchEvent(new CustomEvent("note:delete", { detail: { id } }));
+      }
     }
   });
 
